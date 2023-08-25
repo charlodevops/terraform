@@ -1,0 +1,8 @@
+Check if terraform allows to create Permission sets/S3 policies/Api gateway/Lambda through terraform.
+
+Right all the resources like lambda and api gateway are deployed manually in the console. We need to find out if they can be created through terraform. Find all the relevant web links
+
+
+
+
+Create the lambda function through terraform
