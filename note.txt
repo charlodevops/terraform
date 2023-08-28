@@ -135,3 +135,25 @@ Don't let individual .tf files get too big.  Split your files according to resou
 
 Please make use of comments to provide clarity on what your source is doing, particularly for conditional situations.
 
+
+
+
+We can create it using Terraform.
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_rest_api
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy_attachment
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_access_keys
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_roles
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_inventory
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_policy
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/s3_bucket
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_account_assignment
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_customer_managed_policy_attachment
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_instance_access_control_attributes
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_managed_policy_attachment
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_permission_set
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_permission_set_inline_policy
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_permissions_boundary_attachment
