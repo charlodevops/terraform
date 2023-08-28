@@ -6,3 +6,132 @@ Right all the resources like lambda and api gateway are deployed manually in the
 
 
 Create the lambda function through terraform
+
+
+
+
+
+
+
+Terraform Source - Standards and Best Practices
+Remote State Storage
+By default, Terraform stores state locally in a file named terraform.tfstate. When working with Terraform in a team, use of a local file makes Terraform usage complicated because each user must make sure they always have the latest state data before running Terraform and make sure that nobody else runs Terraform at the same time.  With remote state, Terraform writes the state data to a remote data store, which can then be shared between all members of a team.
+
+FICO's standard is to store our state files in S3.   If your team is just getting started with Terraform and you're working in your own account, you should create an S3 bucket in that account to store your state files as follows.  Typically, 1 S3 bucket is sufficient to store all state files for that account.   You can create this manually in the AWS Console:
+
+Name:  terraform-states-<unique-identifier>    (Unique identifier could be your team's name, the project name, and could include the environment name also)
+Region:  us-west-2    (Because all of FICO's Jenkins worker nodes run in us-west-2, and they are typically what everyone uses to issue terraform commands, we place the bucket in this same region)
+Bucket versioning:  Enabled
+Default Encryption:  Enabled (Key Type=Amazon S3-managed keys (SSE-S3))
+Server access logging: Enabled
+Public access block: Enabled (should already be enabled at account level)
+Tags:  Apply the default tags found here.
+For all other configuration options, use the default setting.
+State file paths and naming -
+
+When you specify the state file 'key name' in your Terraform backend configuration, be sure that value has a unique name for each separate state file that is created for each of your Terraform deployments.  To make each state file unique, you can embed specific deployment information into the state file key name, or you can use subdirectories in your state file key name to create folders in the S3 bucket and better organize your state files.   Examples:
+
+<project>_<environment>_<region>_<service_name>.state
+<project>/<environment>/<region>/<service_name>.state
+
+
+State Locking
+
+Implementing Terraform state locking via a shared DynamoDB table ensures contributors cannot simultaneously update the same state file.  FICO's standard is to implement locking via a DynamoDB table.  If your team is just getting started with Terraform and you're working in your own account, you should create a DynamoDB table in that account to store your state lock files as follows.  Typically, 1 DynamoDB table is sufficient to store all state lock files for that account.   You can create this manually in the AWS Console:
+
+Name:  terraform-locking
+Partition Key:  LockID
+For all other configuration options, use the default setting.
+In your 'S3' backend configuration that you provide to terraform when you're executing the terraform init command, you'll specify this DynamoDB table name.  Example:
+
+terraform {
+  backend "s3" {
+    dynamodb_table = "terraform-locking"
+  }
+}
+
+
+Resource Naming
+
+When creating a resource:
+
+resource "<resource_type>" "<resource_name>" {
+  ...
+}
+
+Use the following conventions for the <resource_name>:
+
+Do not use hyphens(-).  Use underscores(_) only.
+Use lowercase
+Must be unique within the same resource_type and within the same module (TF will throw an error if it's not)
+Should be a noun
+Should be descriptive to help developers identify its purpose
+Resource 'Name' attribute or 'Name' tag
+Some resources have a specific 'name' attribute, some do not.  In the case where it does, we should always provide as much information in that name value as possible(sometimes we're restricted by the allowed length for the name for that particular resource) when the resource might be duplicated across environments, connectivity segments, availability zones, etc.   This is particularly important to differentiate resources between the ORT and PROD environments which are in the same account and will simultaneously exist during testing in ORT.  Example:
+
+resource "aws_security_group" "infrastructure_proxy_elb" {
+  name        = "Infrastructure Proxy [ELB] - ${var.test_env_prefix}${var.environment} - ${var.segment}"
+
+That way we can clearly see in the AWS console the delineation of duplicated resources for various environments/regions/segments/AZ's simply by looking at their names. 
+
+
+
+
+
+Lambda function source
+When creating a Lambda function via Terraform, the python code for that function should be stored as one or more separate files placed in a 'files' subdirectory in that module code.   The code in TF for that lambda function should then be directed to use those files.   Terraform will automatically detect changes in the 'files' subdirectory and will re-create the Zip file when updating the function in AWS.   Example source:
+
+data "archive_file" "zip_the_python_code" {
+  type        = "zip"
+  source_dir  = "${path.module}/files/"
+  output_path = "${path.module}/files/<function_name>-python.zip"
+}
+
+resource "aws_lambda_function" "terraform_lambda_func" {
+  filename                       = "${path.module}/files/<function_name>-python.zip"
+  source_code_hash        = data.archive_file.zip_the_python_code.output_base64sha256
+  ...
+}
+
+Other Coding Best Practices
+Instead of creating duplicate resource blocks for different environments or connectivity segments, use conditionals via the 'count' directive.  Examples:
+# Only create this resource if the segment is 'hybrid'
+resource "aws_route" "hybrid_to_production" {
+  count                     = var.segment == "hybrid" ? length(aws_route_table.vpc_shared_route_tables.*.id) : 0
+
+# Only create this resource in the Test environment
+resource "aws_route" "temporary_nonprod_to_current_2" {
+  count                     = var.test_environment ? 1 : 0
+
+
+
+Consider using conditionals to protect against crossing thresholds that might throw an error in a specific situation
+# Create X number of resources where X is equal to whichever value is less:  'desired instance count' or the 'number of availability zones available in this region'
+resource "aws_subnet" "proxy_server_dmz_subnets" {
+  count = var.desired_instance_count_per_connectivity_segment > length(data.aws_availability_zones.available.names) ? length(data.aws_availability_zones.available.names) : var.desired_instance_count_per_connectivity_segment
+
+Consider smaller cluster/instance sizes for Test environment deployments.  Use environment conditionals to control.
+
+Refactor hard-coded variable and output values to SSM Parameter Store where appropriate
+Dynamic cases like IP allow lists
+Values that would be common across multiple services should go in the 'shared_services_core_cfg' repository
+Output values that other services or accounts might need to use, like your service's DMZ route table ID
+
+Use symlinks(ln -s) or other means for avoiding repetition and following the Don't Repeat Yourself(DRY) coding practice
+Examples:  Any common code shared by multiple modules or multiple environments
+files that store common variables or configuration data
+template files that can be used in multiple environments (Test, ORT, Prod)
+files that store a common provider block
+If a resource is redeploying needlessly when the source for it does not change, add a lifecycle policy that tells Terraform to ignore that triggering attribute when determining an update for that resource.
+
+resource "aws_instance" "example" {
+  # ...
+
+
+  lifecycle {
+    ignore_changes = [ tags.build_id ]
+
+Don't let individual .tf files get too big.  Split your files according to resource types or sets of related resource types. 
+
+Please make use of comments to provide clarity on what your source is doing, particularly for conditional situations.
+
