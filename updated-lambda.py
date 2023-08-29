@@ -10,7 +10,7 @@ from aws_lambda_powertools.event_handler.api_gateway import (
 
 idc_client = boto3.client('identitystore')
 sso_client = boto3.client('sso-admin')
-instance_arn = 'arn:aws:sso:::instance/ssoins-79071ef5f2a874d9'
+instance_arn = 'arn:aws:sso:::instance/ssoins-712345678567'
 idc_id="d-9267420026"
 app = ApiGatewayResolver(proxy_type=ProxyEventType.APIGatewayProxyEventV2)
         
